@@ -137,6 +137,7 @@ class Config(collections.MutableMapping):
 
         spec['subfolding'] = spec.get('subfolding', DEFAULT_SUBFOLDING)
         spec_keys = {  # REQUIRED in uppercase and allowed in lowercase
+            'gcsref': ('PROTOCOL', 'GOOGLE_APPLICATION_CREDENTIALS', 'subfolding'),
             'file': ('PROTOCOL', 'LOCATION', 'subfolding', 'stage'),
             's3': ('PROTOCOL', 'ENDPOINT', 'BUCKET', 'ACCESS_KEY', 'SECRET_KEY', 'LOCATION', 'secure', 'subfolding', 'stage')}
 

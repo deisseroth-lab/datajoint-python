@@ -53,6 +53,9 @@ def _get(connection, attr, data, squeeze, download_path):
     if attr.is_filepath:
         return adapt(extern.download_filepath(uuid.UUID(bytes=data))[0])
 
+    if attr.is_gcsref:
+        return adapt(extern.gcsref_get(uuid.UUID(bytes=data)))
+
     if attr.is_attachment:
         # Steps:
         # 1. get the attachment filename

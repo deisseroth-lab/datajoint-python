@@ -29,13 +29,14 @@ TYPE_PATTERN = {k: re.compile(v, re.I) for k, v in dict(
     EXTERNAL_ATTACH=r'attach@(?P<store>[a-z]\w*)$',
     FILEPATH=r'filepath@(?P<store>[a-z]\w*)$',
     UUID=r'uuid$',
-    ADAPTED=r'<.+>$'
+    ADAPTED=r'<.+>$',
+    GCSREF=r'gcsref@(?P<store>[a-z]\w*)$'
 ).items()}
 
 # custom types are stored in attribute comment
-SPECIAL_TYPES = {'UUID', 'INTERNAL_ATTACH', 'EXTERNAL_ATTACH', 'EXTERNAL_BLOB', 'FILEPATH', 'ADAPTED'}
+SPECIAL_TYPES = {'UUID', 'INTERNAL_ATTACH', 'EXTERNAL_ATTACH', 'EXTERNAL_BLOB', 'FILEPATH', 'ADAPTED', 'GCSREF'}
 NATIVE_TYPES = set(TYPE_PATTERN) - SPECIAL_TYPES
-EXTERNAL_TYPES = {'EXTERNAL_ATTACH', 'EXTERNAL_BLOB', 'FILEPATH'}  # data referenced by a UUID in external tables
+EXTERNAL_TYPES = {'EXTERNAL_ATTACH', 'EXTERNAL_BLOB', 'FILEPATH', 'GCSREF'}  # data referenced by a UUID in external tables
 SERIALIZED_TYPES = {'EXTERNAL_ATTACH', 'INTERNAL_ATTACH', 'EXTERNAL_BLOB', 'INTERNAL_BLOB'}  # requires packing data
 
 assert set().union(SPECIAL_TYPES, EXTERNAL_TYPES, SERIALIZED_TYPES) <= set(TYPE_PATTERN)

@@ -73,6 +73,11 @@ class ExternalTable(Table):
             self._s3 = s3.Folder(**self.spec)
         return self._s3
 
+    @property
+    def gcs(self):
+        import gcsfs
+        return gcsfs.GCSFileSystem(token=self.spec['google_application_credentials'])
+
     # - low-level operations - private
 
     def _make_external_filepath(self, relative_filepath):
@@ -89,6 +94,8 @@ class ExternalTable(Table):
         # Preserve root
         elif self.spec['protocol'] == 'file':
             return PurePosixPath(Path(self.spec['location']), relative_filepath)
+        elif self.spec['protocol'] == 'gcsref':
+            return relative_filepath
         else:
             assert False
 
@@ -133,6 +140,8 @@ class ExternalTable(Table):
             self.s3.remove_object(external_path)
         elif self.spec['protocol'] == 'file':
             Path(external_path).unlink()
+        elif self.spec['protocol'] == 'gcsref':
+            self.gcs.rm(external_path, recursive=True)
 
     def exists(self, external_filepath):
         """
@@ -142,6 +151,8 @@ class ExternalTable(Table):
             return self.s3.exists(external_filepath)
         if self.spec['protocol'] == 'file':
             return Path(external_filepath).is_file()
+        if self.spec['protocol'] == 'gcsref':
+            return self.gcs.exists(external_filepath)
         assert False
 
     # --- BLOBS ----
@@ -216,6 +227,24 @@ class ExternalTable(Table):
         """ save attachment from memory buffer into the save_path """
         external_path = self._make_uuid_path(uuid, '.' + attachment_name)
         self._download_file(external_path, download_path)
+
+    # --- GCSREF ---
+
+    def gcsref_insert(self, path):
+        if not self.exists(path):
+            raise FileNotFoundError('Cannot insert non-existant GCS reference: %s' % path)
+        uuid = uuid_from_buffer(init_string=path)
+        check_hash = (self & {'hash': uuid}).fetch('KEY')
+        if not check_hash:
+            self.connection.query(
+                "INSERT INTO {tab} (hash, size, filepath) VALUES (%s, 0, '{filepath}')".format(
+                    tab=self.full_table_name, filepath=path), args=(uuid.bytes,))
+        return uuid
+
+    def gcsref_get(self, path_hash):
+        if path_hash is not None:
+            return (self & {'hash': path_hash}).fetch1('filepath')
+
 
     # --- FILEPATH ---
 
