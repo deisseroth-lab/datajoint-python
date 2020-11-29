@@ -135,12 +135,12 @@ class Config(collections.MutableMapping):
         except KeyError:
             raise DataJointError('Storage {store} is requested but not configured'.format(store=store)) from None
 
-        # TODO: endpoint/bucket/location/subfolding not necessary for fileref attributes.
         spec['subfolding'] = spec.get('subfolding', DEFAULT_SUBFOLDING)
+        # TODO: Check location is present for non-fileref attribues?
         spec_keys = {  # REQUIRED in uppercase and allowed in lowercase
-            'gcs': ('PROTOCOL', 'GOOGLE_APPLICATION_CREDENTIALS', 'subfolding'),
-            'file': ('PROTOCOL', 'LOCATION', 'subfolding', 'stage'),
-            's3': ('PROTOCOL', 'ENDPOINT', 'BUCKET', 'ACCESS_KEY', 'SECRET_KEY', 'LOCATION', 'secure', 'subfolding', 'stage')}
+            'gcs': ('PROTOCOL', 'GOOGLE_APPLICATION_CREDENTIALS', 'location', 'subfolding', 'stage'),
+            'file': ('PROTOCOL', 'location', 'subfolding', 'stage'),
+            's3': ('PROTOCOL', 'ENDPOINT', 'BUCKET', 'ACCESS_KEY', 'SECRET_KEY', 'location', 'secure', 'subfolding', 'stage')}
 
         try:
             spec_keys = spec_keys[spec.get('protocol', '').lower()]

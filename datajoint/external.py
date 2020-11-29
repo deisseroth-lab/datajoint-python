@@ -95,6 +95,8 @@ class ExternalTable(Table):
             return PurePosixPath(location_path, relative_filepath)
         # Preserve root
         elif self.spec['protocol'] == 'file':
+            if 'location' not in self.spec:  # fileref
+                return relative_filepath
             return PurePosixPath(Path(self.spec['location']), relative_filepath)
         else:
             assert False
