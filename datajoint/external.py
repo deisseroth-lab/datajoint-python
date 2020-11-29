@@ -83,7 +83,9 @@ class ExternalTable(Table):
     def _make_external_filepath(self, relative_filepath):
         """resolve the complete external path based on the relative path"""
         # Strip root
-        if self.spec['protocol'] == 's3':
+        if self.spec['protocol'] in {'s3', 'gcs'}:
+            if 'location' not in self.spec:  # fileref
+                return relative_filepath
             posix_path = PurePosixPath(PureWindowsPath(self.spec['location']))
             location_path = Path(
                     *posix_path.parts[1:]) if len(
@@ -94,8 +96,6 @@ class ExternalTable(Table):
         # Preserve root
         elif self.spec['protocol'] == 'file':
             return PurePosixPath(Path(self.spec['location']), relative_filepath)
-        elif self.spec['protocol'] == 'gcsref':
-            return relative_filepath
         else:
             assert False
 
@@ -109,6 +109,8 @@ class ExternalTable(Table):
             self.s3.fput(local_path, external_path, metadata)
         elif self.spec['protocol'] == 'file':
             safe_copy(local_path, external_path, overwrite=True)
+        elif self.spec['protocol'] == 'gcs':
+            self.gcs.put_file(local_path, external_path)
         else:
             assert False
 
@@ -117,6 +119,8 @@ class ExternalTable(Table):
             self.s3.fget(external_path, download_path)
         elif self.spec['protocol'] == 'file':
             safe_copy(external_path, download_path)
+        elif self.spec['protocol'] == 'gcs':
+            self.gcs.get_file(external_path, download_path)
         else:
             assert False
 
@@ -125,6 +129,8 @@ class ExternalTable(Table):
             self.s3.put(external_path, buffer)
         elif self.spec['protocol'] == 'file':
             safe_write(external_path, buffer)
+        elif self.spec['protocol'] == 'gcs':
+            self.gcs.pipe_file(external_path, buffer)
         else:
             assert False
 
@@ -133,6 +139,8 @@ class ExternalTable(Table):
             return self.s3.get(external_path)
         if self.spec['protocol'] == 'file':
             return Path(external_path).read_bytes()
+        elif self.spec['protocol'] == 'gcs':
+            return self.gcs.cat_file(external_path)
         assert False
 
     def _remove_external_file(self, external_path):
@@ -140,8 +148,10 @@ class ExternalTable(Table):
             self.s3.remove_object(external_path)
         elif self.spec['protocol'] == 'file':
             Path(external_path).unlink()
-        elif self.spec['protocol'] == 'gcsref':
+        elif self.spec['protocol'] == 'gcs':
             self.gcs.rm(external_path, recursive=True)
+        else:
+            assert False
 
     def exists(self, external_filepath):
         """
@@ -151,7 +161,7 @@ class ExternalTable(Table):
             return self.s3.exists(external_filepath)
         if self.spec['protocol'] == 'file':
             return Path(external_filepath).is_file()
-        if self.spec['protocol'] == 'gcsref':
+        if self.spec['protocol'] == 'gcs':
             return self.gcs.exists(external_filepath)
         assert False
 
@@ -228,11 +238,11 @@ class ExternalTable(Table):
         external_path = self._make_uuid_path(uuid, '.' + attachment_name)
         self._download_file(external_path, download_path)
 
-    # --- GCSREF ---
+    # --- FILEREF ---
 
-    def gcsref_insert(self, path):
+    def fileref_insert(self, path):
         if not self.exists(path):
-            raise FileNotFoundError('Cannot insert non-existant GCS reference: %s' % path)
+            raise FileNotFoundError('Cannot reference non-existant path: %s' % path)
         uuid = uuid_from_buffer(init_string=path)
         check_hash = (self & {'hash': uuid}).fetch('KEY')
         if not check_hash:
@@ -241,7 +251,7 @@ class ExternalTable(Table):
                     tab=self.full_table_name, filepath=path), args=(uuid.bytes,))
         return uuid
 
-    def gcsref_get(self, path_hash):
+    def fileref_get(self, path_hash):
         if path_hash is not None:
             return (self & {'hash': path_hash}).fetch1('filepath')
 
